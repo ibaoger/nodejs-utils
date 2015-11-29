@@ -4,12 +4,13 @@
  *   node app.js "input.txt" "output.md"
  *
  * 转换规则如下：
- * 1. 空行保留
+ * 1. 更换每一行中所有连续的两个半角空格为一个全角空格
+ * 5. 检测每一行的内容是否包含 markdown 语法中需要转义的字符，添加转义
+ * 6. 检测每一行的内容是否包含 html 语法中需要转义的字符，添加转义
  * 2. 行首为换页字符  时，更换为分隔线，长度不超过80
  * 3. 每一行开头的第一个字符为数字或英文字母(包括大写和小写)时，加粗此行
- * 4. 更换每一行中所有连续的两个半角空格为一个全角空格
- * 5. 检测每一行的内容是否包含 markdown 语法中需要转义的字符，添加转义
- * 6. 在每一行的末尾添加连续的两个半角空格
+ * 1. 空行更换为一个全角空格
+ * 7. 在每一行的末尾添加连续的两个半角空格
  */
 
 var readline = require('readline');
@@ -63,6 +64,9 @@ function start() {
         if (isNumberOrEnglishLetterAtTheBeginOfLine(line)) {
             line = '**' + line + '**';
         }
+        if (isEmptyLine(line)) {
+            line = '　';
+        }
         line = addHalfsizeSpaceAtTheEndOfLine(line);
         // console.log(line);
         line = line + '\n';
@@ -102,7 +106,7 @@ function start() {
 function isEmptyLine(line) {
     if (line.length == 0) {
         if (line == '') {
-            console.log('empty line.');
+            // console.log('empty line.');
             return true;
         }
     }
@@ -158,6 +162,11 @@ function replaceEscapeCharacter(line) {
         line = line.replace(/\./g, '\\.');
         line = line.replace(/\!/g, '\\!');
         // console.log(line);
+    }
+    /* http://tool.oschina.net/commons?type=2 */
+    if (line.length > 1) {
+        line = line.replace(/\</g, '&lt;');
+        line = line.replace(/\>/g, '&gt;');
     }
     return line;
 }

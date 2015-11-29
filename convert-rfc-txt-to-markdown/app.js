@@ -8,91 +8,163 @@
  * 2. 行首为换页字符  时，更换为分隔线，长度不超过80
  * 3. 每一行开头的第一个字符为数字或英文字母(包括大写和小写)时，加粗此行
  * 4. 更换每一行中所有连续的两个半角空格为一个全角空格
- * 5. 检测每一行的内容是否包括 markdown 语法中需要转义的字符，添加转义
+ * 5. 检测每一行的内容是否包含 markdown 语法中需要转义的字符，添加转义
  * 6. 在每一行的末尾添加连续的两个半角空格
  */
 
-
-function isEmptyLine (line) {
-
-}
-
-function isFormFeedLine (line) {
-
-}
-
-function isNumberOrEnglishLetterAtTheBeginOfLine (line) {
-
-}
-
-function replaceHalfsizeSpacesWithEmSpace (line) {
-
-}
-
-function replaceEscapeCharacter (line) {
-
-}
-
-function addHalfsizeSpaceAtTheEndOfLine (line) {
-
-}
-
 var readline = require('readline');
 var fs = require('fs');
-var readStream = fs.createReadStream('draft-pantos-http-live-streaming-04.txt');
-readStream.on('readable', function() {
-  console.log('readable');
-});
-readStream.on('end', function() {
-  console.log('end');
-});
-readStream.on('data', function() {
-  console.log('data');
-});
-readStream.on('error', function() {
-  console.log('error');
-});
-readStream.on('close', function() {
-  console.log('close');
-});
+var conv = require('binstring');
+var filename = 'draft-pantos-http-live-streaming-04';
+var rfc_txt = filename + '.txt';
+var rfc_md = filename + '.md';
+
+function start() {
+    console.log('input file: ' + rfc_txt);
+    if (fs.existsSync(rfc_md)) {
+        fs.unlinkSync(rfc_md);
+    }
+    var readStream = fs.createReadStream(rfc_txt);
+    // readStream.on('readable', function() {
+    //     console.log('readable');
+    // });
+    // readStream.on('end', function() {
+    //     console.log('end');
+    // });
+    // readStream.on('data', function() {
+    // console.log('data');
+    // });
+    readStream.on('error', function() {
+        console.log('error');
+        if (fs.existsSync(rfc_md)) {
+            fs.unlinkSync(rfc_md);
+        }
+    });
+    readStream.on('close', function() {
+        // console.log('close');
+        if (fs.existsSync(rfc_md)) {
+            console.log('convert success.');
+            console.log('output file: ' + rfc_md);
+        } else
+            console.log('convert failed.');
+    });
 
 
+    var rl = readline.createInterface({
+        input: readStream
+    });
 
-var rl = readline.createInterface({
-  input: readStream
-});
+    rl.on('line', function(line) {
+        line = replaceHalfsizeSpacesWithEmSpace(line);
+        line = replaceEscapeCharacter(line);
+        if (isFormFeedLine(line)) {
+            line = '******';
+        }
+        if (isNumberOrEnglishLetterAtTheBeginOfLine(line)) {
+            line = '**' + line + '**';
+        }
+        line = addHalfsizeSpaceAtTheEndOfLine(line);
+        // console.log(line);
+        line = line + '\n';
+        fs.writeFileSync(rfc_md, line, {'flag':'a+'});
+    });
 
-rl.on('line', function (line) {
-  console.log('line: '+line);
-});
+    // rl.on('pause', function() {
+    //     console.log('Readline paused.');
+    // });
 
-rl.on('pause', function() {
-  console.log('Readline paused.');
-});
+    rl.on('resume', function() {
+        console.log('Readline resumed.');
+    });
 
-rl.on('resume', function() {
-  console.log('Readline resumed.');
-});
+    // rl.on('close', function() {
+    //     console.log('Readline close.');
+    // });
 
-rl.on('close', function() {
-  console.log('Readline close.');
-});
+    rl.on('SIGCONT', function() {
+        // `prompt` will automatically resume the stream
+        rl.prompt();
+    });
 
-rl.on('SIGCONT', function() {
-  // `prompt` will automatically resume the stream
-  rl.prompt();
-});
+    rl.on('SIGINT', function() {
+        rl.question('Are you sure you want to exit?', function(answer) {
+            if (answer.match(/^y(es)?$/i)) rl.pause();
+        });
+    });
 
-rl.on('SIGINT', function() {
-  rl.question('Are you sure you want to exit?', function(answer) {
-    if (answer.match(/^y(es)?$/i)) rl.pause();
-  });
-});
+    rl.on('SIGTSTP', function() {
+        // This will override SIGTSTP and prevent the program from going to the
+        // background.
+        console.log('Caught SIGTSTP.');
+    });
+}
 
-rl.on('SIGTSTP', function() {
-  // This will override SIGTSTP and prevent the program from going to the
-  // background.
-  console.log('Caught SIGTSTP.');
-});
+function isEmptyLine(line) {
+    if (line.length == 0) {
+        if (line == '') {
+            console.log('empty line.');
+            return true;
+        }
+    }
+    return false;
+}
+
+function isFormFeedLine(line) {
+    if (line.length == 1) {
+        if (line[0] == '\f') {
+            // console.log('FF line.');
+            return true;
+        }
+    }
+
+    return false;
+}
+
+function isNumberOrEnglishLetterAtTheBeginOfLine(line) {
+    if (line.length > 0) {
+        var c = line.charCodeAt(0);
+        if ((0x30 <= c && c <= 0x39) || (0x41 <= c && c <= 0x5A) || (0x61 <= c && c <= 0x7A)) {
+            // console.log('bond line.');
+            return true;
+        }
+    }
+    return false;
+}
+
+function replaceHalfsizeSpacesWithEmSpace(line) {
+    if (line.length > 1) {
+        line = line.replace(/  /g, '　');
+        // console.log(line);
+    }
+    return line;
+}
+
+function replaceEscapeCharacter(line) {
+    /* http://daringfireball.net/projects/markdown/syntax#backslash */
+    if (line.length > 1) {
+        line = line.replace(/\\/g, '\\\\');
+        line = line.replace(/\`/g, '\\`');
+        line = line.replace(/\*/g, '\\*');
+        line = line.replace(/\_/g, '\\_');
+        line = line.replace(/\{/g, '\\{');
+        line = line.replace(/\}/g, '\\}');
+        line = line.replace(/\[/g, '\\[');
+        line = line.replace(/\]/g, '\\]');
+        line = line.replace(/\(/g, '\\(');
+        line = line.replace(/\)/g, '\\)');
+        line = line.replace(/\#/g, '\\#');
+        line = line.replace(/\+/g, '\\+');
+        line = line.replace(/\-/g, '\\-');
+        line = line.replace(/\./g, '\\.');
+        line = line.replace(/\!/g, '\\!');
+        // console.log(line);
+    }
+    return line;
+}
+
+function addHalfsizeSpaceAtTheEndOfLine(line) {
+    return (line + '  ');
+}
 
 
+start();
